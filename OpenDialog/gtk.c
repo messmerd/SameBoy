@@ -4,7 +4,7 @@
 #include <dlfcn.h>
 #include <stdbool.h>
 #include <string.h>
-
+ 
 #define GTK_FILE_CHOOSER_ACTION_OPEN 0
 #define GTK_RESPONSE_ACCEPT -3
 #define GTK_RESPONSE_CANCEL -6
