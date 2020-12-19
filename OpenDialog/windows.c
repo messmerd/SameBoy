@@ -25,3 +25,28 @@ char *do_open_rom_dialog(void)
     
     return NULL;
 }
+
+char *do_open_addin_dialog(void)
+{
+    OPENFILENAMEW dialog;
+    wchar_t filename[MAX_PATH] = {0};
+    
+    memset(&dialog, 0, sizeof(dialog));
+    dialog.lStructSize = sizeof(dialog);
+    dialog.lpstrFile = filename;
+    dialog.nMaxFile = sizeof(filename);
+    dialog.lpstrFilter = L"SameBoy Add-ins\0*.dll\0All files\0*.*\0\0";
+    dialog.nFilterIndex = 1;
+    dialog.lpstrFileTitle = NULL;
+    dialog.nMaxFileTitle = 0;
+    dialog.lpstrInitialDir = NULL;
+    dialog.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+    
+    if (GetOpenFileNameW(&dialog) == TRUE) { 
+        char *ret = malloc(MAX_PATH * 4);
+        WideCharToMultiByte(CP_UTF8, 0, filename, sizeof(filename), ret, MAX_PATH * 4, NULL, NULL);
+        return ret;
+    }
+    
+    return NULL;
+}

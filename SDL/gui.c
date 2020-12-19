@@ -116,7 +116,7 @@ configuration_t configuration =
 static const char *help[] = {
 "Drop a ROM to play.\n"
 "\n"
-"Keyboard Shortcuts:\n"
+//"Keyboard Shortcuts:\n"
 " Open Menu:        Escape\n"
 " Open ROM:          " MODIFIER_NAME "+O\n"
 " Reset:             " MODIFIER_NAME "+R\n"
@@ -129,6 +129,7 @@ static const char *help[] = {
 #else
 " Mute/Unmute:       " MODIFIER_NAME "+M\n"
 #endif
+" Add-ins:           " MODIFIER_NAME "+A\n"
 " Break Debugger:    " CTRL_STRING "+C"
 };
 
@@ -269,6 +270,7 @@ static enum {
     SHOWING_HELP,
     WAITING_FOR_KEY,
     WAITING_FOR_JBUTTON,
+    SHOWING_ADDINS
 } gui_state;
 
 static unsigned joypad_configuration_progress = 0;
@@ -291,6 +293,7 @@ static void enter_graphics_menu(unsigned index);
 static void enter_controls_menu(unsigned index);
 static void enter_joypad_menu(unsigned index);
 static void enter_audio_menu(unsigned index);
+static void enter_addins_menu(unsigned index);
 
 extern void set_filename(const char *new_filename, typeof(free) *new_free_function);
 static void open_rom(unsigned index)
@@ -310,6 +313,7 @@ static const struct menu_item paused_menu[] = {
     {"Audio Options", enter_audio_menu},
     {"Keyboard", enter_controls_menu},
     {"Joypad", enter_joypad_menu},
+    {"Add-ins", enter_addins_menu},
     {"Help", item_help},
     {"Quit SameBoy", item_exit},
     {NULL,}
@@ -955,7 +959,6 @@ joypad_axis_t get_joypad_axis(uint8_t physical_axis)
     return JOYPAD_AXISES_MAX;
 }
 
-
 void connect_joypad(void)
 {
     if (joystick && !SDL_NumJoysticks()) {
@@ -980,6 +983,30 @@ void connect_joypad(void)
     if (joystick) {
         haptic = SDL_HapticOpenFromJoystick(joystick);
     }
+}
+
+static void add_addin(unsigned index)
+{
+    char *filename = do_open_addin_dialog();
+    if (filename) {
+        printf("Opening Add-in with file name: %s\n", filename);
+        //set_filename(filename, free);
+        //pending_command = GB_SDL_NEW_FILE_COMMAND;
+    }
+}
+
+static const struct menu_item addins_menu[] = {
+    {"Add", add_addin},
+    {"Back", return_to_root_menu},
+    {NULL,}
+};
+
+static void enter_addins_menu(unsigned index)
+{
+    //gui_state = SHOWING_ADDINS;
+    current_menu = addins_menu;
+    current_selection = 0;
+    scroll = 0;
 }
 
 void run_gui(bool is_running)
@@ -1406,6 +1433,9 @@ void run_gui(bool is_running)
                                        } [joypad_configuration_progress],
                                        gui_palette_native[3], gui_palette_native[0], DECORATION_NONE);
                     draw_text_centered(pixels, width, height, 104 + y_offset, "Press Enter to skip", gui_palette_native[3], gui_palette_native[0], DECORATION_NONE);
+                    break;
+                case SHOWING_ADDINS:
+                    draw_text_centered(pixels, width, height, 8 + y_offset, "Add-ins", gui_palette_native[3], gui_palette_native[0], false);
                     break;
             }
             
