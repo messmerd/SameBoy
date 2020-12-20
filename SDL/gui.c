@@ -270,7 +270,7 @@ static enum {
     SHOWING_HELP,
     WAITING_FOR_KEY,
     WAITING_FOR_JBUTTON,
-    SHOWING_ADDINS
+    SHOWING_ADDINS // TODO: Do I need a new GUI state for the add-ins?
 } gui_state;
 
 static unsigned joypad_configuration_progress = 0;
@@ -990,7 +990,9 @@ static void add_addin(unsigned index)
     char *filename = do_open_addin_dialog();
     if (filename) {
         printf("Opening Add-in with file name: %s\n", filename);
-        set_filename(filename, free);
+        // TODO: Load add-in here
+
+        //set_filename(filename, free);
         //pending_command = GB_SDL_NEW_FILE_COMMAND;
     }
 }

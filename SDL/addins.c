@@ -12,11 +12,12 @@
 #define close_library(handle) dlclose(handle)
 #endif
 
+addin_t *addins;
 
 bool file_exists(const char *filename);
-static void populate_addin(addin_t* addin, const char* filename);
+static void populate_addin(addin_t *addin, const char *filename);
 
-addin_t* addin_load(const char* filename)
+addin_t *addin_load(const char *filename)
 {
     if (filename == NULL || !file_exists(filename))
         return NULL;
@@ -32,7 +33,7 @@ addin_t* addin_load(const char* filename)
 
 
 
-void addin_stop(addin_t* addin)
+void addin_stop(addin_t *addin)
 {
     if (addin == NULL || !addin->active)
         return;
@@ -44,7 +45,7 @@ void addin_stop(addin_t* addin)
 }
 
 
-static void populate_addin(addin_t* addin, const char* filename)
+static void populate_addin(addin_t *addin, const char *filename)
 {
     // Assume addin is not NULL
 
@@ -85,4 +86,11 @@ bool file_exists(const char *filename)
         return true;
     }
     return false;
+}
+
+
+extern GB_gameboy_t gb;
+GB_ADDIN_API GB_gameboy_t *SAMEBOY_get_GB(void)
+{
+    return &gb;
 }

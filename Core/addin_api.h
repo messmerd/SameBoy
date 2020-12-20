@@ -32,6 +32,8 @@ extern "C" {
 
 typedef enum START_ARGS {START_AUTO=1, START_MANUAL=2, START_RELOAD=4} START_ARGS;
 
+GB_ADDIN_API GB_gameboy_t *SAMEBOY_get_GB(void);
+
 // More stuff will go here
 
 #ifdef __cplusplus

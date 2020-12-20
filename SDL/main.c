@@ -9,6 +9,7 @@
 #include "gui.h"
 #include "shader.h"
 #include "audio/audio.h"
+#include "addins.h"
 
 #ifndef _WIN32
 #include <unistd.h>
