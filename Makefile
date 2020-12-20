@@ -241,11 +241,11 @@ $(OBJ)/%.dep: %
 
 $(OBJ)/Core/%.c.o: Core/%.c
 	-@$(MKDIR) -p $(dir $@)
-	$(CC) $(CFLAGS) $(FAT_FLAGS) -DGB_INTERNAL -c $< -o $@
+	$(CC) $(CFLAGS) $(FAT_FLAGS) -DGB_INTERNAL -DADDINS_SERVER -c $< -o $@
 
 $(OBJ)/SDL/%.c.o: SDL/%.c
 	-@$(MKDIR) -p $(dir $@)
-	$(CC) $(CFLAGS) $(FAT_FLAGS) $(SDL_CFLAGS) $(GL_CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(FAT_FLAGS) $(SDL_CFLAGS) $(GL_CFLAGS) -DADDINS_SERVER -c $< -o $@
 
 $(OBJ)/%.c.o: %.c
 	-@$(MKDIR) -p $(dir $@)

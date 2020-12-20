@@ -990,13 +990,16 @@ static void add_addin(unsigned index)
     char *filename = do_open_addin_dialog();
     if (filename) {
         printf("Opening Add-in with file name: %s\n", filename);
-        //set_filename(filename, free);
+        set_filename(filename, free);
         //pending_command = GB_SDL_NEW_FILE_COMMAND;
     }
 }
 
 static const struct menu_item addins_menu[] = {
-    {"Add", add_addin},
+    {"Import Add-in", add_addin},
+    {"", add_addin},
+    {"", add_addin},
+    {"", add_addin},
     {"Back", return_to_root_menu},
     {NULL,}
 };
