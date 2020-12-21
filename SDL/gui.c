@@ -8,7 +8,8 @@
 #include "utils.h"
 #include "gui.h"
 #include "font.h"
- 
+#include "addins.h"
+
 static const SDL_Color gui_palette[4] = {{8, 24, 16,}, {57, 97, 57,}, {132, 165, 99}, {198, 222, 140}};
 static uint32_t gui_palette_native[4];
 
@@ -990,18 +991,48 @@ static void add_addin(unsigned index)
     char *filename = do_open_addin_dialog();
     if (filename) {
         printf("Opening Add-in with file name: %s\n", filename);
-        // TODO: Load add-in here
-
-        //set_filename(filename, free);
+        addin_import_error_t error = addin_import(filename);
+        if (error == ADDIN_IMPORT_ALREADY_IMPORTED)
+        {
+            // Do stuff here
+        }
+        else if (!error) // Failure
+        {
+            // Do stuff here
+        }
+        else // Success
+        {
+            // Add new addin to GUI here
+            // Possible "running" icon: U+1F5D8
+        }
+        
         //pending_command = GB_SDL_NEW_FILE_COMMAND;
+        free(filename);
     }
+}
+
+static void start_stop_addin(unsigned index)
+{
+    printf("start_stop_addin: Begin.\n");
+    int addin_index = index - 1; // Convert GUI index to addin index
+
+    addin_t *addin = get_addin(addin_index);
+    if (!addin)
+        return;
+
+    if (addin->active)
+        addin_stop(addin);
+    else
+        addin_start(addin);
+    
+    printf("start_stop_addin: Done.\n");
 }
 
 static const struct menu_item addins_menu[] = {
     {"Import Add-in", add_addin},
-    {"", add_addin},
-    {"", add_addin},
-    {"", add_addin},
+    {"Add-in #1", start_stop_addin},
+    {"Add-in #2", start_stop_addin},
+    {"Add-in #3", start_stop_addin},
     {"Back", return_to_root_menu},
     {NULL,}
 };

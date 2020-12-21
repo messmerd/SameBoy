@@ -30,9 +30,22 @@
 extern "C" { 
 #endif
 
-typedef enum START_ARGS {START_AUTO=1, START_MANUAL=2, START_RELOAD=4} START_ARGS;
+// TODO: Move this somewhere else?
+typedef struct addin_manifest_s
+{
+    char *display_name;
+    char *author;
+    char *version;
+    bool auto_start;
+} addin_manifest_t;
+
+typedef enum {START_ARGS_AUTO=1, START_ARGS_MANUAL=2, START_ARGS_RELOAD=4} start_args_t;
 
 GB_ADDIN_API GB_gameboy_t *SAMEBOY_get_GB(void);
+
+//GB_ADDIN_API addin_manifest_t SAMEBOY_get_manifest(void);
+
+GB_ADDIN_API int SAMEBOY_api_test_function(int number);
 
 // More stuff will go here
 

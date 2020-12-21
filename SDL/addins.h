@@ -1,6 +1,10 @@
 #ifndef addins_h
 #define addins_h
 
+#include <Core/gb.h>
+#include <string.h>
+#include <stdbool.h>
+
 #ifdef _WIN32
 #include <windows.h>
 #include <libloaderapi.h>
@@ -10,43 +14,45 @@
 #define handle_t void *
 #endif
 
-#include <string.h>
-#include <stdbool.h>
+#define MAX_ADDINS 7
 
-//#define ADDINS_SERVER
-//#include <Core/addin_api.h>
-#include <Core/gb.h>
+//typedef enum PLATFORM {} PLATFORM; // TODO 
 
-typedef int (__stdcall *addin_start_pointer_t)(START_ARGS);
+typedef enum {
+    ADDIN_IMPORT_OK=0, 
+    ADDIN_IMPORT_ALREADY_IMPORTED,
+    ADDIN_IMPORT_MAX_ADDINS,
+    ADDIN_IMPORT_LIBRARY_NOT_FOUND,
+    ADDIN_IMPORT_MANIFEST_NOT_FOUND,
+    ADDIN_IMPORT_LIBRARY_LOAD_FAIL,
+    ADDIN_IMPORT_MEMORY_ALLOCATION_FAIL
+} addin_import_error_t;
+
+typedef int (__stdcall *addin_start_pointer_t)(start_args_t);
 typedef int (__stdcall *addin_stop_pointer_t)(void);
-
-unsigned get_addins_count(void);
-char *get_addin_name(unsigned index);
 
 typedef struct addin_s
 {
     handle_t handle;
-    char *name;
-    char *path;
-    char *author;
+    char *filename; // .dll/.so full file path/name including extension
+    addin_manifest_t manifest;
     bool active;
-    bool auto_start;
 
     addin_start_pointer_t start;
     addin_stop_pointer_t stop;
 } addin_t;
 
-addin_t *addin_load(const char *filename);
-bool addin_reload(addin_t *addin);
+addin_t *get_addin(unsigned index);
+unsigned get_addins_count(void);
+//char *get_addin_name(unsigned index);
+
+addin_import_error_t addin_import(const char *filename);
+// void addin_remove(unsigned index); // TODO 
 
 void addin_start(addin_t *addin);
-void addin_start_ext(addin_t *addin, START_ARGS args);
+void addin_start_ext(addin_t *addin, start_args_t args);
 void addin_stop(addin_t *addin);
 
-void addin_free(addin_t *addin, bool freeEverything);
-
-void populate_addin_list(void);
-
-
+//void import_addins_from_addins_folder(void); // TODO 
 
 #endif /* addins_h */

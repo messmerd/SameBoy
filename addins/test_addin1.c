@@ -5,10 +5,17 @@
 
 //extern GB_gameboy_t gb;
 
-ADDIN_API int start(START_ARGS args)
+ADDIN_API int start(start_args_t args)
 {
     printf("Plugin1: Starting...\n");
+
+    int number = SAMEBOY_api_test_function(23);
+    printf("Plugin1: number=%i\n", number);
+
     GB_gameboy_t* gb = SAMEBOY_get_GB();
+
+    if (!gb)
+        printf("Plugin1: Error: gb is null.\n");
 
     bool is_sgb = GB_is_sgb(gb);
     if (is_sgb)
