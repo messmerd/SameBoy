@@ -28,8 +28,8 @@ typedef enum {
     ADDIN_IMPORT_MEMORY_ALLOCATION_FAIL
 } addin_import_error_t;
 
-typedef int (__stdcall *addin_start_pointer_t)(start_args_t);
-typedef int (__stdcall *addin_stop_pointer_t)(void);
+typedef int (*addin_start_pointer_t)(start_args_t);
+typedef int (*addin_stop_pointer_t)(void);
 
 typedef struct addin_s
 {

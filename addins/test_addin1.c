@@ -3,12 +3,10 @@
 #include <stdio.h>
 #include <Core/addin_api.h>
 
-//extern GB_gameboy_t gb;
-
 ADDIN_API int start(start_args_t args)
 {
     printf("Plugin1: Starting...\n");
-
+    
     int number = SAMEBOY_api_test_function(23);
     printf("Plugin1: number=%i\n", number);
 
@@ -22,7 +20,8 @@ ADDIN_API int start(start_args_t args)
         printf("Plugin1: Model is a Super Game Boy.\n");
     else
         printf("Plugin1: Not a Super Game Boy.\n");
-
+    
+    printf("Plugin1: Done starting.\n");
     return 0;
 }
 

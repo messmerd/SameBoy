@@ -994,14 +994,17 @@ static void add_addin(unsigned index)
         addin_import_error_t error = addin_import(filename);
         if (error == ADDIN_IMPORT_ALREADY_IMPORTED)
         {
+            printf("Already imported.\n");
             // Do stuff here
         }
-        else if (!error) // Failure
+        else if (error) // Failure
         {
+            printf("Import error:%i\n", error);
             // Do stuff here
         }
         else // Success
         {
+            printf("Successfully imported.\n");
             // Add new addin to GUI here
             // Possible "running" icon: U+1F5D8
         }
@@ -1013,19 +1016,18 @@ static void add_addin(unsigned index)
 
 static void start_stop_addin(unsigned index)
 {
-    printf("start_stop_addin: Begin.\n");
     int addin_index = index - 1; // Convert GUI index to addin index
 
     addin_t *addin = get_addin(addin_index);
     if (!addin)
         return;
 
+    //printf("~~~~\nAdd-in info:\n--filename  =%s\n--disp name =%s\n--author    =%s\n--version   =%s\n--auto run  =%i\n~~~~\n", addin->filename, addin->manifest.display_name, addin->manifest.author, addin->manifest.version, addin->manifest.auto_start);
+
     if (addin->active)
         addin_stop(addin);
     else
         addin_start(addin);
-    
-    printf("start_stop_addin: Done.\n");
 }
 
 static const struct menu_item addins_menu[] = {

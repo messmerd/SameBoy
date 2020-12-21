@@ -14,6 +14,8 @@
 #define close_library(handle) dlclose(handle)
 #endif
 
+// TODO: Need to free add-ins when SameBoy closes
+
 static addin_t *addins[MAX_ADDINS];
 static unsigned addins_count = 0;
 
@@ -102,9 +104,9 @@ static addin_import_error_t manifest_import(addin_manifest_t *manifest, const ch
     char key[100];
     char value[100];
 
-    while (!fgets(buffer, 100, fp))
+    while (fgets(buffer, 100, fp))
     {
-        if (buffer[0] == ';' || buffer[0] == '[')
+        if (!isalpha(buffer[0]))
             continue;
         char *start = strchr(buffer, '=');
         if (!start || start == &buffer[0])
@@ -112,7 +114,8 @@ static addin_import_error_t manifest_import(addin_manifest_t *manifest, const ch
         char *key_end = start - 1;
         while (isspace(*key_end))
             key_end--;
-        strncpy(key, buffer, (key_end - &buffer[0]) / sizeof(char));
+        strncpy(key, buffer, key_end - &buffer[0] + 1);
+        key[key_end - &buffer[0] + 1] = '\0';
         start++;
 
         while (isspace(*start))
@@ -122,10 +125,15 @@ static addin_import_error_t manifest_import(addin_manifest_t *manifest, const ch
             end--;
 
         if (end > start)
-            strncpy(value, start, (end - start) / sizeof(char));
+        {
+            strncpy(value, start, end - start);
+            value[end - start] = '\0';
+        }
         else
             value[0] = '\0';
         
+        printf("key=%s;\nvalue=%s;\n", key, value);
+
         if (strcmp(key, "display_name") == 0)
             manifest->display_name = strdup(value);
         else if (strcmp(key, "author") == 0)
@@ -142,21 +150,16 @@ static addin_import_error_t manifest_import(addin_manifest_t *manifest, const ch
 
 void addin_start(addin_t *addin)
 {
-    printf("addin_start: Begin.\n");
     addin_start_ext(addin, START_ARGS_MANUAL);
-    // TODO: I'm getting a seg fault here after addin_start_ext returns 
-    printf("addin_start: Done.\n");
 }
 
 void addin_start_ext(addin_t *addin, start_args_t args)
 {
-    printf("addin_start_ext: Begin.\n");
-    if (addin == NULL || addin->active)
+    if (!addin || addin->active)
         return;
 
     addin->start(args);
     addin->active = true;
-    printf("addin_start_ext: Done.\n");
 }
 
 void addin_stop(addin_t *addin)
