@@ -5,6 +5,8 @@
 #include <string.h>
 #include <stdbool.h>
 
+// Old implementation:
+/*
 #ifdef _WIN32
 #include <windows.h>
 #include <libloaderapi.h>
@@ -13,6 +15,7 @@
 #include <dlfcn.h>
 #define handle_t void *
 #endif
+*/
 
 #define MAX_ADDINS 7
 
@@ -33,7 +36,7 @@ typedef int (*addin_stop_pointer_t)(void);
 
 typedef struct addin_s
 {
-    handle_t handle;
+    void *handle;
     char *filename; // .dll/.so full file path/name including extension
     addin_manifest_t manifest;
     bool active;

@@ -1,9 +1,17 @@
+#include <SDL_loadso.h>
 #include <stdio.h>
 #include <ctype.h>
 
 #include "addins.h"
 #include "utils.h"
 
+// Use SDL for cross-platform dynamic loading
+#define load_library(filename) SDL_LoadObject(filename)
+#define get_address(handle, name) SDL_LoadFunction(handle, name)
+#define unload_library(handle) SDL_UnloadObject(handle)
+
+// Another implementation:
+/*
 #ifdef _WIN32
 #define load_library(filename) LoadLibrary(filename)
 #define get_address(handle, name) GetProcAddress(handle, name)
@@ -13,6 +21,7 @@
 #define get_address(handle, name) dlsym(handle, name)
 #define close_library(handle) dlclose(handle)
 #endif
+*/
 
 // TODO: Need to free add-ins when SameBoy closes
 
@@ -100,38 +109,52 @@ static addin_import_error_t manifest_import(addin_manifest_t *manifest, const ch
     if (!fp)
         return ADDIN_IMPORT_MANIFEST_NOT_FOUND;
 
-    char buffer[100];
-    char key[100];
-    char value[100];
+    char buffer[100] = {'\0'};
+    char key[100] = {'\0'};
+    char value[100] = {'\0'};
 
     while (fgets(buffer, 100, fp))
     {
+        // A key must start with a letter. 
+        // Whitespace preceeding key is not allowed.
         if (!isalpha(buffer[0]))
             continue;
-        char *start = strchr(buffer, '=');
-        if (!start || start == &buffer[0])
+        
+        // Locate the '=' that divides key from value
+        char *value_start = strchr(buffer, '=');
+        if (!value_start || value_start == &buffer[0])
             continue;
-        char *key_end = start - 1;
-        while (isspace(*key_end))
+        
+        // Trim whitespace b/w key and '='
+        char *key_end = value_start - 1;
+        while (isspace(*key_end) && key_end > &buffer[0])
             key_end--;
+        
+        // Get key
         strncpy(key, buffer, key_end - &buffer[0] + 1);
         key[key_end - &buffer[0] + 1] = '\0';
-        start++;
+        value_start++;
 
-        while (isspace(*start))
-            start++;
-        char *end = &buffer[98];
-        while (end > start && isspace(*end))
-            end--;
-
-        if (end > start)
-        {
-            strncpy(value, start, end - start);
-            value[end - start] = '\0';
-        }
-        else
+        if (*value_start == '\n' || *value_start == '\0')
             value[0] = '\0';
+        else
+        {
+            char *end = &buffer[99];
+            while (end >= value_start && (*end == '\0' || isspace(*end)))
+                end--;
+            
+            if (end < value_start)
+                value[0] = '\0';
+            else
+            {
+                strncpy(value, value_start, end - value_start + 1);
+                value[end - value_start + 1] = '\0';
+            }
+        }
         
+        printf("buffer=%s;\n", buffer);
+        memset(buffer, '\0', 100);
+
         printf("key=%s;\nvalue=%s;\n", key, value);
 
         if (strcmp(key, "display_name") == 0)
@@ -142,6 +165,9 @@ static addin_import_error_t manifest_import(addin_manifest_t *manifest, const ch
             manifest->version = strdup(value);
         else if (strcmp(key, "auto_start") == 0)
             manifest->auto_start = value[0] == '1' || strcmp(value, "true") || strcmp(value, "TRUE");
+
+        memset(key, '\0', 100);
+        memset(value, '\0', 100);
     }
 
     fclose(fp);
@@ -209,6 +235,13 @@ extern GB_gameboy_t gb;
 GB_ADDIN_API GB_gameboy_t *SAMEBOY_get_GB(void)
 {
     return &gb;
+}
+
+GB_ADDIN_API const char *SAMEBOY_get_version(void)
+{
+#define str(x) #x
+#define xstr(x) str(x)
+    return (const char *)xstr(VERSION);
 }
 
 /*

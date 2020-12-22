@@ -5,7 +5,7 @@ set lib=%lib%;C:\SDL2\lib\x86
 set include=%include%;C:\SDL2\include
 bash.exe "./sdl2-config" --cflags
 bash.exe "./sdl2-config" --libs
-make
+make CONF=debug
 "C:\Program Files\LLVM\bin\clang-cl.exe" -LD -IWindows -Iinclude -I./ -Wno-deprecated-declarations --target=i386-pc-windows addins/test_addin1.c build/bin/SDL/sameboy.lib -o addins/
 
 rem pause

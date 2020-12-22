@@ -47,6 +47,8 @@ GB_ADDIN_API GB_gameboy_t *SAMEBOY_get_GB(void);
 
 GB_ADDIN_API int SAMEBOY_api_test_function(int number);
 
+GB_ADDIN_API const char *SAMEBOY_get_version(void);
+
 // More stuff will go here
 
 #ifdef __cplusplus
