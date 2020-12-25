@@ -29,6 +29,7 @@ static addin_t *addins[MAX_ADDINS];
 static unsigned addins_count = 0;
 
 static addin_import_error_t manifest_import(addin_manifest_t *manifest, const char *filename);
+static void addin_unload(addin_t *addin);
 static void addin_free(addin_t *addin);
 
 addin_import_error_t addin_import(const char *filename)
@@ -93,11 +94,9 @@ cleanup:
     return error; // Failure
 }
 
-#define INI_BUFFER_SIZE 200
 static addin_import_error_t manifest_import(addin_manifest_t *manifest, const char *filename)
 {
     // Parses an addin's .ini manifest file
-    // TODO: Make this into an .ini file parser and put it in utils.c
 
     manifest->display_name = NULL;
     manifest->author = NULL;
@@ -154,23 +153,44 @@ unsigned get_addins_count(void)
     return addins_count;
 }
 
+void addins_close_all(void)
+{
+    for (int i = 0; i < addins_count; ++i)
+    {
+        if (addins[i])
+        {
+            addin_unload(addins[i]);
+            addin_free(addins[i]);
+        }
+    }
+    addins_count = 0;
+}
+
+static void addin_unload(addin_t *addin)
+{
+    if (!addin || !addin->handle)
+        return;
+    unload_library(addin->handle);
+}
+
 static void addin_free(addin_t *addin)
 {
     free(addin->filename);
     free(addin->manifest.display_name);
     free(addin->manifest.author);
     free(addin->manifest.version);
+    free(addin);
 }
 
 // Additional API methods available to add-ins:
 
 extern GB_gameboy_t gb;
-GB_ADDIN_API GB_gameboy_t *SAMEBOY_get_GB(void)
+GB_ADDIN_API GB_gameboy_t *GB_EXT_get_GB(void)
 {
     return &gb;
 }
 
-GB_ADDIN_API const char *SAMEBOY_get_version(void)
+GB_ADDIN_API const char *GB_EXT_get_version(void)
 {
 #define str(x) #x
 #define xstr(x) str(x)
@@ -178,7 +198,7 @@ GB_ADDIN_API const char *SAMEBOY_get_version(void)
 }
 
 /*
-GB_ADDIN_API addin_manifest_t SAMEBOY_get_manifest(void)
+GB_ADDIN_API addin_manifest_t GB_EXT_get_manifest(void)
 {
     // Once threading has been implemented for add-ins, I might be able 
     //  to determine which add-in called this function without using any 
@@ -187,7 +207,7 @@ GB_ADDIN_API addin_manifest_t SAMEBOY_get_manifest(void)
 }
 */
 
-GB_ADDIN_API int SAMEBOY_api_test_function(int number)
+GB_ADDIN_API int GB_EXT_api_test_function(int number)
 {
     return 100 + number;
 }

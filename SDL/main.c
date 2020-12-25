@@ -379,6 +379,7 @@ static void debugger_interrupt(int ignore)
     /* ^C twice to exit */
     if (GB_debugger_is_stopped(&gb)) {
         GB_save_battery(&gb, battery_save_path_ptr);
+        addins_close_all();
         exit(0);
     }
     GB_debugger_break(&gb);
@@ -442,6 +443,7 @@ static bool handle_pending_command(void)
             
         case GB_SDL_QUIT_COMMAND:
             GB_save_battery(&gb, battery_save_path_ptr);
+            addins_close_all();
             exit(0);
     }
     return false;

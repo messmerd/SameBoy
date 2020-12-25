@@ -57,6 +57,8 @@ void addin_start(addin_t *addin);
 void addin_start_ext(addin_t *addin, start_args_t args);
 void addin_stop(addin_t *addin);
 
+void addins_close_all(void);
+
 //void import_addins_from_addins_folder(void); // TODO 
 
 #endif /* addins_h */

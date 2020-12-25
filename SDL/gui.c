@@ -1217,6 +1217,7 @@ void run_gui(bool is_running)
         switch (event.type) {
             case SDL_QUIT: {
                 if (!is_running) {
+                    addins_close_all();
                     exit(0);
                 }
                 else {
@@ -1339,6 +1340,7 @@ void run_gui(bool is_running)
                             }
                             if (pending_command) {
                                 if (!is_running && pending_command == GB_SDL_QUIT_COMMAND) {
+                                    addins_close_all();
                                     exit(0);
                                 }
                                 return;
