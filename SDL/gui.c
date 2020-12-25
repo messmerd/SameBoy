@@ -1022,7 +1022,7 @@ static void start_stop_addin(unsigned index)
     if (!addin)
         return;
 
-    //printf("~~~~\nAdd-in info:\n--filename  =%s\n--disp name =%s\n--author    =%s\n--version   =%s\n--auto run  =%i\n~~~~\n", addin->filename, addin->manifest.display_name, addin->manifest.author, addin->manifest.version, addin->manifest.auto_start);
+    printf("~~~~\nAdd-in info:\n--filename  =%s\n--disp name =%s\n--author    =%s\n--version   =%s\n--auto run  =%i\n~~~~\n", addin->filename, addin->manifest.display_name, addin->manifest.author, addin->manifest.version, addin->manifest.auto_start);
 
     if (addin->active)
         addin_stop(addin);

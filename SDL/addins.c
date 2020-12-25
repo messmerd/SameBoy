@@ -30,7 +30,6 @@ static unsigned addins_count = 0;
 
 static addin_import_error_t manifest_import(addin_manifest_t *manifest, const char *filename);
 static void addin_free(addin_t *addin);
-static bool file_exists(const char *filename);
 
 addin_import_error_t addin_import(const char *filename)
 {
@@ -94,6 +93,7 @@ cleanup:
     return error; // Failure
 }
 
+#define INI_BUFFER_SIZE 200
 static addin_import_error_t manifest_import(addin_manifest_t *manifest, const char *filename)
 {
     // Parses an addin's .ini manifest file
@@ -104,74 +104,19 @@ static addin_import_error_t manifest_import(addin_manifest_t *manifest, const ch
     manifest->version = NULL;
     manifest->auto_start = false;
 
-    FILE *fp = NULL;
-    fopen_s(&fp, filename, "r");
-    if (!fp)
+    if (!file_exists(filename))
         return ADDIN_IMPORT_MANIFEST_NOT_FOUND;
 
-    char buffer[100] = {'\0'};
-    char key[100] = {'\0'};
-    char value[100] = {'\0'};
+    void *parse_dest[] = {&manifest->display_name, &manifest->author, &manifest->version, &manifest->auto_start};
+    const char *keys[] = {"display_name", "author", "version", "auto_start"};
+    const ini_value_type_t types[] = {INI_VALUE_TYPE_STRING, INI_VALUE_TYPE_STRING, INI_VALUE_TYPE_STRING, INI_VALUE_TYPE_BOOL};
+    const int size = sizeof(keys) / sizeof(char *);
 
-    while (fgets(buffer, 100, fp))
-    {
-        // A key must start with a letter. 
-        // Whitespace preceeding key is not allowed.
-        if (!isalpha(buffer[0]))
-            continue;
-        
-        // Locate the '=' that divides key from value
-        char *value_start = strchr(buffer, '=');
-        if (!value_start || value_start == &buffer[0])
-            continue;
-        
-        // Trim whitespace b/w key and '='
-        char *key_end = value_start - 1;
-        while (isspace(*key_end) && key_end > &buffer[0])
-            key_end--;
-        
-        // Get key
-        strncpy(key, buffer, key_end - &buffer[0] + 1);
-        key[key_end - &buffer[0] + 1] = '\0';
-        value_start++;
+    bool result = ini_read_keys(parse_dest, filename, keys, types, size);
 
-        if (*value_start == '\n' || *value_start == '\0')
-            value[0] = '\0';
-        else
-        {
-            char *end = &buffer[99];
-            while (end >= value_start && (*end == '\0' || isspace(*end)))
-                end--;
-            
-            if (end < value_start)
-                value[0] = '\0';
-            else
-            {
-                strncpy(value, value_start, end - value_start + 1);
-                value[end - value_start + 1] = '\0';
-            }
-        }
-        
-        printf("buffer=%s;\n", buffer);
-        memset(buffer, '\0', 100);
+    printf("\nManifest contents:\ndisplay_name=%s;\nauthor=%s;\nversion=%s;\nauto_start=%i;\n\n", manifest->display_name, manifest->author, manifest->version, manifest->auto_start);
 
-        printf("key=%s;\nvalue=%s;\n", key, value);
-
-        if (strcmp(key, "display_name") == 0)
-            manifest->display_name = strdup(value);
-        else if (strcmp(key, "author") == 0)
-            manifest->author = strdup(value);
-        else if (strcmp(key, "version") == 0)
-            manifest->version = strdup(value);
-        else if (strcmp(key, "auto_start") == 0)
-            manifest->auto_start = value[0] == '1' || strcmp(value, "true") || strcmp(value, "TRUE");
-
-        memset(key, '\0', 100);
-        memset(value, '\0', 100);
-    }
-
-    fclose(fp);
-    return ADDIN_IMPORT_OK;
+    return result ? ADDIN_IMPORT_MANIFEST_PARSE_FAIL : ADDIN_IMPORT_OK;
 }
 
 void addin_start(addin_t *addin)
@@ -215,18 +160,6 @@ static void addin_free(addin_t *addin)
     free(addin->manifest.display_name);
     free(addin->manifest.author);
     free(addin->manifest.version);
-}
-
-static bool file_exists(const char *filename)
-{
-    FILE *file = NULL;
-    fopen_s(&file, filename, "r");
-    if (file)
-    {
-        fclose(file);
-        return true;
-    }
-    return false;
 }
 
 // Additional API methods available to add-ins:
