@@ -326,7 +326,7 @@ ifeq ($(CONF), release)
 	$(STRIP) $@
 endif
 
-# Windows version builds two, one with a conole and one without it
+# Windows version builds two, one with a console and one without it
 $(BIN)/SDL/sameboy.exe: $(CORE_OBJECTS) $(SDL_OBJECTS) $(OBJ)/Windows/resources.o
 	-@$(MKDIR) -p $(dir $@)
 	$(CC) $^ -o $@ $(LDFLAGS) $(SDL_LDFLAGS) $(GL_LDFLAGS) -Wl,/subsystem:windows

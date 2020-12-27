@@ -1022,8 +1022,6 @@ static void start_stop_addin(unsigned index)
     if (!addin)
         return;
 
-    printf("~~~~\nAdd-in info:\n--filename  =%s\n--disp name =%s\n--author    =%s\n--version   =%s\n--auto run  =%i\n~~~~\n", addin->filename, addin->manifest.display_name, addin->manifest.author, addin->manifest.version, addin->manifest.auto_start);
-
     if (addin->active)
         addin_stop(addin);
     else
@@ -1275,9 +1273,11 @@ void run_gui(bool is_running)
                 if (event.key.keysym.scancode == SDL_SCANCODE_F && event.key.keysym.mod & MODIFIER) {
                     if ((SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN_DESKTOP) == false) {
                         SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+                        addins_event_fullscreen_invoke(true);
                     }
                     else {
                         SDL_SetWindowFullscreen(window, 0);
+                        addins_event_fullscreen_invoke(false);
                     }
                     update_viewport();
                 }

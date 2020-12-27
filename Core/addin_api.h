@@ -30,26 +30,50 @@
 extern "C" { 
 #endif
 
+#ifdef ADDIN_WINDOWS_CONSOLE_BUILD
+#define _ADDIN_WINDOWS_CONSOLE_BUILD 1
+#else
+#define _ADDIN_WINDOWS_CONSOLE_BUILD 0
+#endif
+#define ADDIN_INIT ADDIN_API int _addin_init(void) { return _ADDIN_WINDOWS_CONSOLE_BUILD; }
+
+////////////////////
+// Enums          //
+////////////////////
+
 // TODO: Move this somewhere else?
-typedef struct addin_manifest_s
-{
+typedef struct addin_manifest_s {
     char *display_name;
     char *author;
     char *version;
     bool auto_start;
 } addin_manifest_t;
 
-typedef enum {START_ARGS_AUTO=1, START_ARGS_MANUAL=2, START_ARGS_RELOAD=4} start_args_t;
+typedef enum {
+    START_ARGS_AUTO=1, 
+    START_ARGS_MANUAL=2, 
+    START_ARGS_RELOAD=4
+} start_args_t;
+
+////////////////////
+// Event Handlers //
+////////////////////
+
+typedef void (*handler_fullscreen_t)(bool isFullscreen);
+GB_ADDIN_API int GB_EXT_event_fullscreen_subscribe(const char *handler);
+
+////////////////////
+// Extended API   //
+////////////////////
 
 GB_ADDIN_API GB_gameboy_t *GB_EXT_get_GB(void);
 
-//GB_ADDIN_API addin_manifest_t GB_EXT_get_manifest(void);
-
-GB_ADDIN_API int GB_EXT_api_test_function(int number);
+GB_ADDIN_API addin_manifest_t *GB_EXT_get_manifest(void);
 
 GB_ADDIN_API const char *GB_EXT_get_version(void);
 
-// More stuff will go here
+// More to come
+
 
 #ifdef __cplusplus
 }

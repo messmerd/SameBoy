@@ -25,6 +25,7 @@ typedef enum {
     ADDIN_IMPORT_OK=0, 
     ADDIN_IMPORT_ALREADY_IMPORTED,
     ADDIN_IMPORT_MAX_ADDINS,
+    ADDIN_IMPORT_TARGETS_WRONG_SAMEBOY_WINDOWS_BUILD,
     ADDIN_IMPORT_LIBRARY_NOT_FOUND,
     ADDIN_IMPORT_MANIFEST_NOT_FOUND,
     ADDIN_IMPORT_LIBRARY_LOAD_FAIL,
@@ -34,6 +35,13 @@ typedef enum {
 
 typedef int (*addin_start_pointer_t)(start_args_t);
 typedef int (*addin_stop_pointer_t)(void);
+typedef int (*addin_init_pointer_t)(void);
+
+typedef struct addin_event_handlers_s
+{
+    handler_fullscreen_t fullscreen;
+    // More event handlers to go here
+} addin_event_handlers_t;
 
 typedef struct addin_s
 {
@@ -44,6 +52,8 @@ typedef struct addin_s
 
     addin_start_pointer_t start;
     addin_stop_pointer_t stop;
+
+    addin_event_handlers_t event_handlers;
 } addin_t;
 
 addin_t *get_addin(unsigned index);
@@ -59,6 +69,10 @@ void addin_stop(addin_t *addin);
 
 void addins_close_all(void);
 
-//void import_addins_from_addins_folder(void); // TODO 
+void import_addins_from_addins_folder(void);
+
+void addins_event_fullscreen_invoke(bool isFullscreen);
+
+
 
 #endif /* addins_h */
