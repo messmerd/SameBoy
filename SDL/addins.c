@@ -1,5 +1,6 @@
 #include <SDL_loadso.h>
 #include <stdio.h>
+#include <stddef.h>
 #include <ctype.h>
 
 #ifdef _WIN32
@@ -27,12 +28,21 @@
 #endif
 */
 
+#define get_handler(h) offsetof(addin_event_handlers_t, h)
+
+extern GB_gameboy_t gb;
+
 static addin_t *addins[MAX_ADDINS];
 static unsigned addins_count = 0;
 
 static addin_import_error_t manifest_import(addin_manifest_t *manifest, const char *filename);
+static unsigned addin_create_id(void);
 static void addin_unload(addin_t *addin);
 static void addin_free(addin_t *addin);
+
+static bool addin_event_subscribe(unsigned addin_id, size_t handler_relative_address, char *handler_name, bool subscribe);
+static void addin_event_invoke(size_t handler_relative_address, char *thread_name, void *arg);
+static void addin_event_unsubscribe_all(addin_t *addin);
 
 static bool is_windows_build(void);
 static bool is_windows_console_build(void);
@@ -82,16 +92,17 @@ addin_import_error_t addin_import(const char *filename)
     if (!addin->handle)
         goto cleanup;
 
-    addin->start = (addin_start_pointer_t)get_address(addin->handle, "start");
-    addin->stop = (addin_stop_pointer_t)get_address(addin->handle, "stop");
-    addin_stop_pointer_t addin_init_function = (addin_stop_pointer_t)get_address(addin->handle, "_addin_init");
+    addin->start = (SDL_ThreadFunction)get_address(addin->handle, "_addin_start");
+    addin->stop = (SDL_ThreadFunction)get_address(addin->handle, "_addin_stop");
+    SDL_ThreadFunction addin_init_function = (SDL_ThreadFunction)get_address(addin->handle, "_addin_init");
     if (!addin->start || !addin->stop || !addin_init_function)
         goto cleanup;
     
     bool windows_build = is_windows_build();
     bool windows_console_build = is_windows_console_build();
 
-    bool addin_uses_sameboy_windows_console_build = addin_init_function();
+    addin->id = addin_create_id();
+    bool addin_uses_sameboy_windows_console_build = addin_init_function((void *)&addin->id);
 
     if (windows_build)
     {
@@ -146,9 +157,25 @@ static addin_import_error_t manifest_import(addin_manifest_t *manifest, const ch
     return result ? ADDIN_IMPORT_MANIFEST_PARSE_FAIL : ADDIN_IMPORT_OK;
 }
 
+static unsigned addin_create_id(void)
+{
+    unsigned id;
+    while (true)
+    {
+        id = rand() % (UINT_MAX - 1) + 1;
+        for (int i = 0; i < addins_count; ++i)
+        {
+            if (addins[i] && addins[i]->id == id)
+                continue;
+        }
+        break;
+    }
+    return id;
+}
+
 void addin_start(addin_t *addin)
 {
-    start_args_t args = 0;
+    addin_start_args_t args = 0;
 
     args |= START_ARGS_MANUAL;
     //args |= is_windows_console_build() ? START_ARGS_WINDOWS_CONSOLE_BUILD : 0;
@@ -156,12 +183,15 @@ void addin_start(addin_t *addin)
     addin_start_ext(addin, args);
 }
 
-void addin_start_ext(addin_t *addin, start_args_t args)
+void addin_start_ext(addin_t *addin, addin_start_args_t args)
 {
     if (!addin || addin->active)
         return;
 
-    addin->start(args);
+    SDL_Thread *thread = SDL_CreateThread(addin->start, "_addin_start", (void *)&args);
+    //printf("addin_start_ext...Thread ID:%lu; Thread Get ID:%lu;\n", SDL_ThreadID(), SDL_GetThreadID(thread));
+    SDL_DetachThread(thread);
+
     addin->active = true;
 }
 
@@ -170,7 +200,11 @@ void addin_stop(addin_t *addin)
     if (addin == NULL || !addin->active)
         return;
 
-    addin->stop();
+    SDL_Thread *thread = SDL_CreateThread(addin->stop, "_addin_stop", NULL);
+    SDL_DetachThread(thread);
+
+    addin_event_unsubscribe_all(addin);
+
     //close_library(addin->handle);
     //addin->handle = NULL;
     addin->active = false;
@@ -179,6 +213,16 @@ void addin_stop(addin_t *addin)
 addin_t *get_addin(unsigned index)
 {
     return index < addins_count ? addins[index] : NULL;
+}
+
+addin_t *get_addin_from_id(unsigned id)
+{
+    for (int i = 0; i < addins_count; ++i)
+    {
+        if (addins[i] && addins[i]->id == id)
+            return addins[i];
+    }
+    return NULL;
 }
 
 unsigned get_addins_count(void)
@@ -216,6 +260,47 @@ static void addin_free(addin_t *addin)
     free(addin);
 }
 
+static bool addin_event_subscribe(unsigned addin_id, size_t handler_relative_address, char *handler_name, bool subscribe)
+{
+    addin_t *addin = get_addin_from_id(addin_id);
+    if (!addin)
+        return true;
+
+    //printf("Event subscribe...Add-in name:%s;\n", addin->manifest.display_name);
+
+    SDL_ThreadFunction *func = (SDL_ThreadFunction *)((void *)(&addin->event_handlers) + handler_relative_address);
+    if (subscribe)
+    {
+        *func = (SDL_ThreadFunction)get_address(addin->handle, handler_name);
+        return *func == NULL;
+    }
+    else
+        *func = NULL;
+    return false;
+}
+
+static void addin_event_invoke(size_t handler_relative_address, char *thread_name, void *arg)
+{
+    for (int i = 0; i < addins_count; ++i)
+    {
+        SDL_ThreadFunction func = *(SDL_ThreadFunction *)((void *)(&addins[i]->event_handlers) + handler_relative_address);
+        if (func)
+        {
+            //printf("Invoking %s event.\n", thread_name);
+            //printf("struct base=%p;\nrelatv addr=%X;\nfunc addr  =%p;\n\n", (void *)&(addins[i]->event_handlers), handler_relative_address, (void *)(SDL_ThreadFunction *)((void *)&(addins[i]->event_handlers) + handler_relative_address));
+            //printf("func   =%p;\ncorrect=%p;\n\n", (void *)func, (void *)addins[i]->event_handlers.pause);
+            SDL_Thread *thread = SDL_CreateThread(func, thread_name, arg);
+            SDL_DetachThread(thread);
+        }
+    }
+}
+
+static void addin_event_unsubscribe_all(addin_t *addin)
+{
+    if (addin)
+        memset(&addin->event_handlers, 0, sizeof(addin->event_handlers));
+}
+
 static bool is_windows_build(void)
 {
 #ifdef _WIN32
@@ -239,23 +324,101 @@ static bool is_windows_console_build(void)
     return result;
 }
 
+//////////////////////
+// API Functions    //
+//////////////////////
 
-// Additional API methods available to add-ins:
+// Wrappers for SameBoy Core API functions:
 
-extern GB_gameboy_t gb;
-GB_ADDIN_API GB_gameboy_t *GB_EXT_get_GB(void)
+void SBAPI_init(GB_model_t model) {GB_init(&gb, model); }
+bool SBAPI_is_inited(void) {return GB_is_inited(&gb); }
+bool SBAPI_is_cgb(void) {return GB_is_cgb(&gb); }
+bool SBAPI_is_sgb(void) {return GB_is_sgb(&gb); }
+bool SBAPI_is_hle_sgb(void) {return GB_is_hle_sgb(&gb); }
+GB_model_t SBAPI_get_model(void) {return GB_get_model(&gb); }
+void SBAPI_free(void) {GB_free(&gb); }
+void SBAPI_reset(void) {GB_reset(&gb); }
+void SBAPI_switch_model_and_reset(GB_model_t model) {GB_switch_model_and_reset(&gb, model); }
+
+uint8_t SBAPI_run(void) {return GB_run(&gb); }
+uint64_t SBAPI_run_frame(void) {return GB_run_frame(&gb); }
+
+void *SBAPI_get_direct_access(GB_direct_access_t access, size_t *size, uint16_t *bank) {return GB_get_direct_access(&gb, access, size, bank); }
+
+void *SBAPI_get_user_data(void) {return GB_get_user_data(&gb); }
+void SBAPI_set_user_data(void *data) {GB_set_user_data(&gb, data); }
+
+int SBAPI_load_boot_rom(const char *path) {return GB_load_boot_rom(&gb, path); }
+void SBAPI_load_boot_rom_from_buffer(const unsigned char *buffer, size_t size) {GB_load_boot_rom_from_buffer(&gb, buffer, size); }
+int SBAPI_load_rom(const char *path) {return GB_load_rom(&gb, path); }
+void SBAPI_load_rom_from_buffer(const uint8_t *buffer, size_t size) {GB_load_rom_from_buffer(&gb, buffer, size); }
+int SBAPI_load_isx(const char *path) {return GB_load_isx(&gb, path); }
+
+int SBAPI_save_battery_size(void) {return GB_save_battery_size(&gb); }
+int SBAPI_save_battery_to_buffer(uint8_t *buffer, size_t size) {return GB_save_battery_to_buffer(&gb, buffer, size); }
+int SBAPI_save_battery(const char *path) {return GB_save_battery(&gb, path); }
+
+void SBAPI_load_battery_from_buffer(const uint8_t *buffer, size_t size) {GB_load_battery_from_buffer(&gb, buffer, size); }
+void SBAPI_load_battery(const char *path) {GB_load_battery(&gb, path); }
+
+void SBAPI_set_turbo_mode(bool on, bool no_frame_skip) {GB_set_turbo_mode(&gb, on, no_frame_skip); }
+void SBAPI_set_rendering_disabled(bool disabled) {GB_set_rendering_disabled(&gb, disabled); }
+
+void SBAPI_log(const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    GB_log(&gb, fmt, args); 
+    va_end(args);
+}
+void SBAPI_attributed_log(GB_log_attributes attributes, const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    GB_attributed_log(&gb, attributes, fmt, args); 
+    va_end(args);
+}
+
+void SBAPI_set_pixels_output(uint32_t *output) {GB_set_pixels_output(&gb, output); }
+void SBAPI_set_border_mode(GB_border_mode_t border_mode) {GB_set_border_mode(&gb, border_mode); }
+
+void SBAPI_set_infrared_input(bool state) {GB_set_infrared_input(&gb, state); }
+
+void SBAPI_set_palette(const GB_palette_t *palette) {GB_set_palette(&gb, palette); }
+
+/* These APIs are used when using external clock */
+bool SBAPI_serial_get_data_bit(void) {return GB_serial_get_data_bit(&gb); }
+void SBAPI_serial_set_data_bit(bool data) {GB_serial_set_data_bit(&gb, data); }
+
+void SBAPI_disconnect_serial(void) {GB_disconnect_serial(&gb); }
+
+/* For cartridges with an alarm clock */
+unsigned SBAPI_time_to_alarm(void) {return GB_time_to_alarm(&gb); } // 0 if no alarm
+
+uint32_t SBAPI_get_clock_rate(void) {return GB_get_clock_rate(&gb); }
+void SBAPI_set_clock_multiplier(double multiplier) {GB_set_clock_multiplier(&gb, multiplier); }
+
+unsigned SBAPI_get_screen_width(void) {return GB_get_screen_width(&gb); }
+unsigned SBAPI_get_screen_height(void) {return GB_get_screen_height(&gb); }
+double SBAPI_get_usual_frame_rate(void) {return GB_get_usual_frame_rate(&gb); }
+unsigned SBAPI_get_player_count(void) {return GB_get_player_count(&gb); }
+
+// Additional API functions available to add-ins:
+
+
+GB_gameboy_t *SBAPI_get_GB(void)
 {
     return &gb;
 }
 
-GB_ADDIN_API const char *GB_EXT_get_version(void)
+const char *SBAPI_get_version(void)
 {
 #define str(x) #x
 #define xstr(x) str(x)
     return (const char *)xstr(VERSION);
 }
 
-GB_ADDIN_API addin_manifest_t *GB_EXT_get_manifest(void)
+addin_manifest_t *SBAPI_get_manifest(void)
 {
     // Once threading has been implemented for add-ins, I might be able 
     //  to determine which add-in called this function without using any 
@@ -267,32 +430,121 @@ GB_ADDIN_API addin_manifest_t *GB_EXT_get_manifest(void)
 }
 
 
-////////// EVENT HANDLING ///////////
+////////// EVENT HANDLING - SUBSCRIBE ///////////
 
-GB_ADDIN_API int GB_EXT_event_fullscreen_subscribe(const char *handler)
+// Wrappers for SameBoy Core events:
+
+bool SBAPI_event_vblank_subscribe(unsigned addin_id, bool subscribe)
 {
-    // TODO: Need to figure out which add-in called this method
-    // For now, use addins[0] for testing.
-    if (!handler)
-    {
-        addins[0]->event_handlers.fullscreen = NULL;
-        return 0;
-    }
-    
-    addins[0]->event_handlers.fullscreen = (handler_fullscreen_t)get_address(addins[0]->handle, handler);
-    return !addins[0]->event_handlers.fullscreen; // Return false if successful
+    return addin_event_subscribe(addin_id, get_handler(vblank), "_vblank_handler", subscribe);
 }
 
-void addins_event_fullscreen_invoke(bool isFullscreen)
+bool SBAPI_event_log_subscribe(unsigned addin_id, bool subscribe)
 {
-    printf("Checking if need to invoke fullscreen event.\n");
-    for (int i = 0; i < addins_count; ++i)
-    {
-        if (addins[i]->event_handlers.fullscreen)
-        {
-            printf("Invoking fullscreen event.\n");
-            addins[i]->event_handlers.fullscreen(isFullscreen);
-        }
-            
-    }
+    return addin_event_subscribe(addin_id, get_handler(log), "_log_handler", subscribe);
+}
+
+bool SBAPI_event_input_subscribe(unsigned addin_id, bool subscribe)
+{
+    return addin_event_subscribe(addin_id, get_handler(fullscreen), "_input_handler", subscribe);
+}
+
+bool SBAPI_event_async_input_subscribe(unsigned addin_id, bool subscribe)
+{
+    return addin_event_subscribe(addin_id, get_handler(async_input), "_async_input_handler", subscribe);
+}
+
+bool SBAPI_event_rgb_encode_subscribe(unsigned addin_id, bool subscribe)
+{
+    return addin_event_subscribe(addin_id, get_handler(rgb_encode), "_rgb_encode_handler", subscribe);
+}
+
+bool SBAPI_event_infrared_subscribe(unsigned addin_id, bool subscribe)
+{
+    return addin_event_subscribe(addin_id, get_handler(infrared), "_infrared_handler", subscribe);
+}
+
+bool SBAPI_event_rumble_subscribe(unsigned addin_id, bool subscribe)
+{
+    return addin_event_subscribe(addin_id, get_handler(rumble), "_rumble_handler", subscribe);
+}
+
+bool SBAPI_event_update_input_hint_subscribe(unsigned addin_id, bool subscribe)
+{
+    return addin_event_subscribe(addin_id, get_handler(update_input_hint), "_update_input_hint_handler", subscribe);
+}
+
+bool SBAPI_event_boot_rom_load_subscribe(unsigned addin_id, bool subscribe)
+{
+    return addin_event_subscribe(addin_id, get_handler(boot_rom_load), "_boot_rom_load_handler", subscribe);
+}
+
+bool SBAPI_event_serial_transfer_bit_start_subscribe(unsigned addin_id, bool subscribe)
+{
+    return addin_event_subscribe(addin_id, get_handler(serial_transfer_bit_start), "_serial_transfer_bit_start_handler", subscribe);
+}
+
+bool SBAPI_event_serial_transfer_bit_end_subscribe(unsigned addin_id, bool subscribe)
+{
+    return addin_event_subscribe(addin_id, get_handler(serial_transfer_bit_end), "_serial_transfer_bit_end_handler", subscribe);
+}
+
+bool SBAPI_event_joyp_write_subscribe(unsigned addin_id, bool subscribe)
+{
+    return addin_event_subscribe(addin_id, get_handler(joyp_write), "_joyp_write_handler", subscribe);
+}
+
+bool SBAPI_event_icd_pixel_subscribe(unsigned addin_id, bool subscribe)
+{
+    return addin_event_subscribe(addin_id, get_handler(icd_pixel), "_icd_pixel_handler", subscribe);
+}
+
+bool SBAPI_event_icd_hreset_subscribe(unsigned addin_id, bool subscribe)
+{
+    return addin_event_subscribe(addin_id, get_handler(icd_hreset), "_icd_hreset_handler", subscribe);
+}
+
+bool SBAPI_event_icd_vreset_subscribe(unsigned addin_id, bool subscribe)
+{
+    return addin_event_subscribe(addin_id, get_handler(icd_vreset), "_icd_vreset_handler", subscribe);
+}
+
+// Additional events for SameBoy:
+
+bool SBAPI_event_step_subscribe(unsigned addin_id, bool subscribe)
+{
+    return addin_event_subscribe(addin_id, get_handler(step), "_step_handler", subscribe); 
+}
+
+bool SBAPI_event_fullscreen_subscribe(unsigned addin_id, bool subscribe)
+{
+    return addin_event_subscribe(addin_id, get_handler(fullscreen), "_fullscreen_handler", subscribe);
+}
+
+bool SBAPI_event_pause_subscribe(unsigned addin_id, bool subscribe)
+{
+    return addin_event_subscribe(addin_id, get_handler(pause), "_pause_handler", subscribe);
+}
+
+
+////////// EVENT HANDLING - INVOKE ///////////
+
+// Wrappers for SameBoy Core events:
+
+
+// Additional events for SameBoy:
+
+void addins_event_step_invoke(void)
+{
+    addin_event_invoke(get_handler(step), "_step_handler", NULL);
+}
+
+void addins_event_fullscreen_invoke(bool is_fullscreen)
+{
+    addin_event_invoke(get_handler(fullscreen), "_fullscreen_handler", (void *)&is_fullscreen);
+}
+
+void addins_event_pause_invoke(bool is_paused)
+{
+    addin_event_invoke(get_handler(pause), "_pause_handler", (void *)&is_paused);
 }

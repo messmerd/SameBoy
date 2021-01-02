@@ -127,6 +127,7 @@ static void open_menu(void)
     if (previous_width != GB_get_screen_width(&gb)) {
         screen_size_changed();
     }
+    addins_event_pause_invoke(false);
 }
 
 static void handle_events(GB_gameboy_t *gb)
@@ -284,9 +285,11 @@ static void handle_events(GB_gameboy_t *gb)
                         if (event.key.keysym.mod & MODIFIER) {
                             if ((SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN_DESKTOP) == false) {
                                 SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+                                addins_event_fullscreen_invoke(true);
                             }
                             else { 
                                 SDL_SetWindowFullscreen(window, 0);
+                                addins_event_fullscreen_invoke(false);
                             }
                             update_viewport();
                         }
@@ -569,6 +572,7 @@ restart:
                 do_rewind = false;
             }
             GB_run(&gb);
+            addins_event_step_invoke();
         }
         
         /* These commands can't run in the handle_event function, because they're not safe in a vblank context. */
@@ -705,6 +709,7 @@ int main(int argc, char **argv)
     
     if (filename == NULL) {
         run_gui(false);
+        addins_event_pause_invoke(false);
     }
     else {
         connect_joypad();

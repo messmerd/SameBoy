@@ -994,17 +994,17 @@ static void add_addin(unsigned index)
         addin_import_error_t error = addin_import(filename);
         if (error == ADDIN_IMPORT_ALREADY_IMPORTED)
         {
-            printf("Already imported.\n");
+            printf("Already imported.\n\n");
             // Do stuff here
         }
         else if (error) // Failure
         {
-            printf("Import error:%i\n", error);
+            printf("Import error:%i\n\n", error);
             // Do stuff here
         }
         else // Success
         {
-            printf("Successfully imported.\n");
+            printf("Successfully imported.\n\n");
             // Add new addin to GUI here
             // Possible "running" icon: U+1F5D8
         }
@@ -1082,6 +1082,9 @@ void run_gui(bool is_running)
     current_menu = root_menu = is_running? paused_menu : nonpaused_menu;
     current_selection = 0;
     scroll = 0;
+
+    addins_event_pause_invoke(true);
+
     do {
         /* Convert Joypad and mouse events (We only generate down events) */
         if (gui_state != WAITING_FOR_KEY && gui_state != WAITING_FOR_JBUTTON) {

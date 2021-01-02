@@ -5,49 +5,66 @@
 
 ADDIN_INIT
 
-ADDIN_API void fullscreen_event_handler(bool isFullscreen)
-{
-    if (isFullscreen)
-        printf("Plugin1: Toggled fullscreen on.\n");
-    else
-        printf("Plugin1: Toggled fullscreen off.\n");
-}
+SBAPI_DECLARE_FULLSCREEN_HANDLER(fullscreen_handler)
+SBAPI_DECLARE_PAUSE_HANDLER(pause_handler)
 
-ADDIN_API int start(start_args_t args)
+int start(addin_start_args_t args)
 {
-    printf("Plugin1: Starting...\n");
+    printf("Add-in 1: Starting...\n");
 
-    const char *version = GB_EXT_get_version();
-    printf("Plugin1: SameBoy version=%s\n", version);
+    const char *version = SBAPI_get_version();
+    printf("Add-in 1: SameBoy version=%s\n", version);
 
     // Subscribe to fullscreen toggle events:
-    bool error = GB_EXT_event_fullscreen_subscribe("fullscreen_event_handler");
+    bool error = SBAPI_event_fullscreen_subscribe(M(true));
     if (error)
-        printf("Plugin1: Failed to subscribe to fullscreen event.\n");
+        printf("Add-in 1: Failed to subscribe to fullscreen event.\n");
 
-    GB_gameboy_t *gb = GB_EXT_get_GB();
+    error = SBAPI_event_pause_subscribe(M(true));
+    if (error)
+        printf("Add-in 1: Failed to subscribe to pause event.\n");
+
+    GB_gameboy_t *gb = SBAPI_get_GB();
 
     if (!gb)
-        printf("Plugin1: Error: gb is null.\n");
+        printf("Add-in 1: Error: gb is null.\n");
 
-    if (GB_is_inited(gb))
+    if (SBAPI_is_inited())
     {
-        printf("Plugin1: GB is inited.\n");
-        bool is_sgb = GB_is_sgb(gb);
+        printf("Add-in 1: GB is inited.\n");
+        bool is_sgb = SBAPI_is_sgb();
         if (is_sgb)
-            printf("Plugin1: Model is a Super Game Boy.\n");
+            printf("Add-in 1: Model is a Super Game Boy.\n");
         else
-            printf("Plugin1: Not a Super Game Boy.\n");
+            printf("Add-in 1: Not a Super Game Boy.\n");
     }
     
-    printf("Plugin1: Done starting.\n");
+    printf("Add-in 1: Done starting.\n\n");
     return 0;
 }
 
-ADDIN_API int stop()
+int stop()
 {
-    printf("Plugin1: Stopping.\n");
+    printf("Add-in 1: Done stopping.\n\n");
+
+    // Clean up memory and other housekeeping here
+    // Events are automatically unsubscribed when this function is called
 
     return 0;
 }
 
+void fullscreen_handler(bool is_fullscreen)
+{
+    if (is_fullscreen)
+        printf("Add-in 1: Toggled fullscreen on.\n");
+    else
+        printf("Add-in 1: Toggled fullscreen off.\n");
+}
+
+void pause_handler(bool is_paused)
+{
+    if (is_paused)
+        printf("Add-in 1: Paused.\n");
+    else
+        printf("Add-in 1: Unpaused.\n");
+}
