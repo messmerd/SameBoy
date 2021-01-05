@@ -62,9 +62,7 @@ addin_import_error_t addin_import(const char *filename)
     for (unsigned i = 0; i < addins_count; ++i)
     {
         if (strcmp(filename, addins[i]->filename) == 0)
-        {
             return ADDIN_IMPORT_ALREADY_IMPORTED; 
-        }
     }
 
     addin_t *addin = NULL;
@@ -137,13 +135,8 @@ static void shorten_string(char **string, const unsigned max_size)
 {
     if (*string && strlen(*string) > max_size)
     {
-        char *new_string = (char *)malloc((max_size + 1) * sizeof(char));
-        if (!new_string)
-            return;
-        strncpy(new_string, *string, max_size);
-        new_string[max_size] = '\0';
-        free(*string);
-        *string = new_string;
+        *string = realloc(*string, (max_size + 1) * sizeof(char));
+        (*string)[max_size] = '\0';
     }
 }
 
@@ -188,7 +181,7 @@ static unsigned addin_create_id(void)
         id = rand() % (UINT_MAX - 1) + 1;
         for (int i = 0; i < addins_count; ++i)
         {
-            if (addins[i] && addins[i]->id == id)
+            if (addins[i]->id == id)
                 continue;
         }
         break;
@@ -220,11 +213,13 @@ void addin_start_ext(addin_t *addin, addin_start_args_t args)
 
 void addin_stop(addin_t *addin)
 {
-    if (addin == NULL || !addin->active)
+    if (!addin || !addin->active)
         return;
 
     SDL_Thread *thread = SDL_CreateThread(addin->stop, "_addin_stop", NULL);
-    SDL_DetachThread(thread);
+    
+    // Wait for add-in to finish cleaning up
+    SDL_WaitThread(thread, NULL); 
 
     addin_event_unsubscribe_all(addin);
 
@@ -242,7 +237,7 @@ addin_t *get_addin_from_id(unsigned id)
 {
     for (int i = 0; i < addins_count; ++i)
     {
-        if (addins[i] && addins[i]->id == id)
+        if (addins[i]->id == id)
             return addins[i];
     }
     return NULL;
@@ -258,11 +253,11 @@ void addins_close_all(void)
     printf("Closing all add-ins.\n");
     for (int i = 0; i < addins_count; ++i)
     {
-        if (addins[i])
-        {
-            addin_unload(addins[i]);
-            addin_free(addins[i]);
-        }
+        if (addins[i]->active)
+            addin_stop(addins[i]);
+        
+        addin_unload(addins[i]);
+        addin_free(addins[i]);
     }
     addins_count = 0;
 }
@@ -276,6 +271,8 @@ static void addin_unload(addin_t *addin)
 
 static void addin_free(addin_t *addin)
 {
+    if (!addin)
+        return;
     free(addin->filename);
     free(addin->manifest.display_name);
     free(addin->manifest.author);
