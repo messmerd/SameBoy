@@ -6,7 +6,7 @@
 ADDIN_INIT
 
 SBAPI_DECLARE_FULLSCREEN_HANDLER(fullscreen_handler)
-SBAPI_DECLARE_PAUSE_HANDLER(pause_handler)
+SBAPI_DECLARE_MENU_HANDLER(menu_handler)
 
 int start(addin_start_args_t args)
 {
@@ -61,10 +61,10 @@ void fullscreen_handler(bool is_fullscreen)
         printf("Add-in 1: Toggled fullscreen off.\n");
 }
 
-void pause_handler(bool is_paused)
+void menu_handler(bool is_paused)
 {
     if (is_paused)
-        printf("Add-in 1: Paused.\n");
+        printf("Add-in 1: Opened menu.\n");
     else
-        printf("Add-in 1: Unpaused.\n");
+        printf("Add-in 1: Closed menu.\n");
 }

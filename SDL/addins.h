@@ -55,7 +55,7 @@ typedef struct addin_event_handlers_s
     icd_vreset,
     step,
     fullscreen,
-    pause;
+    menu;
     // More event handlers to go here
 } addin_event_handlers_t;
 

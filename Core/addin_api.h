@@ -127,8 +127,8 @@ typedef void (*SBAPI_pause_callback_t)(bool is_paused);
     SB_ADDIN_FUNC int SB_ADDIN_FUNC_CALL _step_handler(void *args) {handler(); return 0; }
 #define SBAPI_DECLARE_FULLSCREEN_HANDLER(handler) void handler(bool is_fullscreen); \
     SB_ADDIN_FUNC int SB_ADDIN_FUNC_CALL _fullscreen_handler(void *args) {handler(*(bool *)args); return 0; }
-#define SBAPI_DECLARE_PAUSE_HANDLER(handler) void handler(bool is_paused); \
-    SB_ADDIN_FUNC int SB_ADDIN_FUNC_CALL _pause_handler(void *args) {handler(*(bool *)args); return 0; }
+#define SBAPI_DECLARE_MENU_HANDLER(handler) void handler(bool menu_open); \
+    SB_ADDIN_FUNC int SB_ADDIN_FUNC_CALL _menu_handler(void *args) {handler(*(bool *)args); return 0; }
 
 
 ////////// EVENT HANDLING - SUBSCRIBE ///////////
@@ -162,7 +162,7 @@ SB_ADDIN_API bool SBAPI_event_icd_vreset_subscribe(unsigned addin_id, bool subsc
 
 SB_ADDIN_API bool SBAPI_event_step_subscribe(unsigned addin_id, bool subscribe);
 SB_ADDIN_API bool SBAPI_event_fullscreen_subscribe(unsigned addin_id, bool subscribe);
-SB_ADDIN_API bool SBAPI_event_pause_subscribe(unsigned addin_id, bool subscribe);
+SB_ADDIN_API bool SBAPI_event_menu_subscribe(unsigned addin_id, bool subscribe);
 
 //////////////////////
 // API Functions    //

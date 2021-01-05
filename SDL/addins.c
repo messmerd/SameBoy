@@ -541,9 +541,9 @@ bool SBAPI_event_fullscreen_subscribe(unsigned addin_id, bool subscribe)
     return addin_event_subscribe(addin_id, get_handler(fullscreen), "_fullscreen_handler", subscribe);
 }
 
-bool SBAPI_event_pause_subscribe(unsigned addin_id, bool subscribe)
+bool SBAPI_event_menu_subscribe(unsigned addin_id, bool subscribe)
 {
-    return addin_event_subscribe(addin_id, get_handler(pause), "_pause_handler", subscribe);
+    return addin_event_subscribe(addin_id, get_handler(menu), "_menu_handler", subscribe);
 }
 
 
