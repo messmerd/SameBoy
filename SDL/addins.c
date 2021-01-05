@@ -133,6 +133,20 @@ cleanup:
     return error; // Failure
 }
 
+static void shorten_string(char **string, const unsigned max_size)
+{
+    if (*string && strlen(*string) > max_size)
+    {
+        char *new_string = (char *)malloc((max_size + 1) * sizeof(char));
+        if (!new_string)
+            return;
+        strncpy(new_string, *string, max_size);
+        new_string[max_size] = '\0';
+        free(*string);
+        *string = new_string;
+    }
+}
+
 static addin_import_error_t manifest_import(addin_manifest_t *manifest, const char *filename)
 {
     // Parses an addin's INI manifest file
@@ -148,9 +162,18 @@ static addin_import_error_t manifest_import(addin_manifest_t *manifest, const ch
     void *parse_dest[] = {&manifest->display_name, &manifest->author, &manifest->version, &manifest->auto_start};
     const char *keys[] = {"display_name", "author", "version", "auto_start"};
     const ini_value_type_t types[] = {INI_VALUE_TYPE_STRING, INI_VALUE_TYPE_STRING, INI_VALUE_TYPE_STRING, INI_VALUE_TYPE_BOOL};
-    const int size = sizeof(keys) / sizeof(char *);
+    const int size = sizeof(keys) / sizeof(const char *);
 
     bool result = ini_read_keys(parse_dest, filename, keys, types, size);
+
+    // Shorten the display name to 20 characters or less if needed
+    shorten_string(&manifest->display_name, 20);
+
+    // Shorten the author string to 20 characters or less if needed
+    shorten_string(&manifest->author, 20);
+    
+    // Shorten the version string to 20 characters or less if needed
+    shorten_string(&manifest->version, 20);
 
     printf("\nManifest contents:\ndisplay_name=%s;\nauthor=%s;\nversion=%s;\nauto_start=%i;\n\n", manifest->display_name, manifest->author, manifest->version, manifest->auto_start);
 

@@ -20,6 +20,8 @@ SDL_PixelFormat *pixel_format = NULL;
 enum pending_command pending_command;
 unsigned command_parameter;
 
+static SDL_TimerID running_animation_timer = 0;
+
 #ifdef __APPLE__
 #define MODIFIER_NAME " " CMD_STRING
 #else
@@ -115,23 +117,27 @@ configuration_t configuration =
 
 
 static const char *help[] = {
-"Drop a ROM to play.\n"
-"\n"
-//"Keyboard Shortcuts:\n"
-" Open Menu:        Escape\n"
-" Open ROM:          " MODIFIER_NAME "+O\n"
-" Reset:             " MODIFIER_NAME "+R\n"
-" Pause:             " MODIFIER_NAME "+P\n"
-" Save state:    " MODIFIER_NAME "+(0-9)\n"
-" Load state:  " MODIFIER_NAME "+" SHIFT_STRING "+(0-9)\n"
-" Toggle Fullscreen  " MODIFIER_NAME "+F\n"
-#ifdef __APPLE__
-" Mute/Unmute:     " MODIFIER_NAME "+" SHIFT_STRING "+M\n"
-#else
-" Mute/Unmute:       " MODIFIER_NAME "+M\n"
-#endif
-" Add-ins:           " MODIFIER_NAME "+A\n"
-" Break Debugger:    " CTRL_STRING "+C"
+    "Drop a ROM to play.\n"
+    "\n"
+    "Keyboard Shortcuts:\n"
+    " Open Menu:        Escape\n"
+    " Open ROM:          " MODIFIER_NAME "+O\n"
+    " Reset:             " MODIFIER_NAME "+R\n"
+    " Pause:             " MODIFIER_NAME "+P\n"
+    " Save state:    " MODIFIER_NAME "+(0-9)\n"
+    " Load state:  " MODIFIER_NAME "+" SHIFT_STRING "+(0-9)\n",
+    "Drop a ROM to play.\n"
+    "\n"
+    "Keyboard Shortcuts (cont):\n"
+    "\n"
+    " Toggle Fullscreen  " MODIFIER_NAME "+F\n"
+    #ifdef __APPLE__
+    " Mute/Unmute:     " MODIFIER_NAME "+" SHIFT_STRING "+M\n"
+    #else
+    " Mute/Unmute:       " MODIFIER_NAME "+M\n"
+    #endif
+    " Open Add-ins menu: " MODIFIER_NAME "+A\n"
+    " Break Debugger:    " CTRL_STRING "+C"
 };
 
 void update_viewport(void)
@@ -249,7 +255,7 @@ static void draw_text_centered(uint32_t *buffer, unsigned width, unsigned height
             draw_text(buffer, width, height, x - GLYPH_WIDTH, y, LEFT_ARROW_STRING, color, border);
             draw_text(buffer, width, height, width - x, y, RIGHT_ARROW_STRING, color, border);
             break;
-            
+        
         case DECORATION_NONE:
             break;
     }
@@ -271,7 +277,7 @@ static enum {
     SHOWING_HELP,
     WAITING_FOR_KEY,
     WAITING_FOR_JBUTTON,
-    SHOWING_ADDINS // TODO: Do I need a new GUI state for the add-ins?
+    SHOWING_ADDINS
 } gui_state;
 
 static unsigned joypad_configuration_progress = 0;
@@ -324,9 +330,12 @@ static const struct menu_item *const nonpaused_menu = &paused_menu[1];
 
 static void return_to_root_menu(unsigned index)
 {
+    gui_state = SHOWING_MENU;
     current_menu = root_menu;
     current_selection = 0;
     scroll = 0;
+    if (running_animation_timer && SDL_RemoveTimer(running_animation_timer))
+        running_animation_timer = 0;
 }
 
 static void cycle_model(unsigned index)
@@ -1007,6 +1016,8 @@ static void add_addin(unsigned index)
             printf("Successfully imported.\n\n");
             // Add new addin to GUI here
             // Possible "running" icon: U+1F5D8
+            
+            //update_addin_gui();
         }
         
         //pending_command = GB_SDL_NEW_FILE_COMMAND;
@@ -1016,40 +1027,79 @@ static void add_addin(unsigned index)
 
 static void start_stop_addin(unsigned index)
 {
-    int addin_index = index - 1; // Convert GUI index to addin index
+    int addin_index = index - 1; // Convert GUI index to add-in index
 
     addin_t *addin = get_addin(addin_index);
     if (!addin)
+    {
+        add_addin(index);
         return;
-
+    }
+    
     if (addin->active)
         addin_stop(addin);
     else
         addin_start(addin);
 }
 
+static SDL_Event update_running_animation_event;
+static unsigned running_animation_index = 0;
+static const char *running_animation[] = {
+    RUNNING_FRAME_0, RUNNING_FRAME_1, RUNNING_FRAME_2, RUNNING_FRAME_3
+};
+
+Uint32 SDLCALL running_animation_timer_callback(Uint32 interval, void *param)
+{
+    running_animation_index = (running_animation_index + 1) % 4;
+    SDL_PushEvent(&update_running_animation_event);
+    return interval;
+}
+
+const char *get_addin_name(unsigned index)
+{
+    int addin_index = index - 1; // Convert GUI index to addin index
+    addin_t *addin = get_addin(addin_index);
+    if (addin)
+        return (const char *)addin->manifest.display_name;
+    return (const char *)"........";
+}
+
 static const struct menu_item addins_menu[] = {
-    {"Import Add-in", add_addin},
-    {"Add-in #1", start_stop_addin},
-    {"Add-in #2", start_stop_addin},
-    {"Add-in #3", start_stop_addin},
+    {"Import", add_addin},
+    {"", start_stop_addin, get_addin_name},
+    {"", start_stop_addin, get_addin_name},
+    {"", start_stop_addin, get_addin_name},
+    {"", start_stop_addin, get_addin_name},
+    {"", start_stop_addin, get_addin_name},
+    {"", start_stop_addin, get_addin_name},
+    {"", start_stop_addin, get_addin_name},
     {"Back", return_to_root_menu},
     {NULL,}
 };
 
 static void enter_addins_menu(unsigned index)
 {
-    //gui_state = SHOWING_ADDINS;
+    gui_state = SHOWING_ADDINS;
     current_menu = addins_menu;
     current_selection = 0;
     scroll = 0;
+    running_animation_index = 0;
+    if (!running_animation_timer)
+            running_animation_timer = SDL_AddTimer(250, running_animation_timer_callback, NULL);
 }
 
 void run_gui(bool is_running)
 {
     SDL_ShowCursor(SDL_ENABLE);
     connect_joypad();
-    
+
+    /* Register event that updates the add-in running animation */
+    Uint32 running_animation_event_type = SDL_RegisterEvents(1);
+    if (running_animation_event_type != ((Uint32)-1)) {
+        SDL_zero(update_running_animation_event);
+        update_running_animation_event.type = running_animation_event_type;
+    }
+
     /* Draw the background screen */
     static SDL_Surface *converted_background = NULL;
     if (!converted_background) {
@@ -1101,7 +1151,7 @@ void run_gui(bool is_running)
                         event.type = SDL_KEYDOWN;
                         event.key.keysym.scancode = SDL_SCANCODE_ESCAPE;
                     }
-                    else if (gui_state == SHOWING_MENU) {
+                    else if (gui_state == SHOWING_MENU || gui_state == SHOWING_ADDINS) {
                         signed x = (event.button.x - rect.x / factor) * width / (rect.w / factor) - x_offset;
                         signed y = (event.button.y - rect.y / factor) * height / (rect.h / factor) - y_offset;
                         
@@ -1239,8 +1289,7 @@ void run_gui(bool is_running)
                 pending_command = GB_SDL_NEW_FILE_COMMAND;
                 return;
             }
-            case SDL_JOYBUTTONDOWN:
-            {
+            case SDL_JOYBUTTONDOWN: {
                 if (gui_state == WAITING_FOR_JBUTTON && joypad_configuration_progress != JOYPAD_BUTTONS_MAX) {
                     should_render = true;
                     configuration.joypad_configuration[joypad_configuration_progress++] = event.jbutton.button;
@@ -1326,7 +1375,7 @@ void run_gui(bool is_running)
                         should_render = true;
                     }
                 }
-                else if (gui_state == SHOWING_MENU) {
+                else if (gui_state == SHOWING_MENU || gui_state == SHOWING_ADDINS) {
                     if (event.key.keysym.scancode == SDL_SCANCODE_DOWN && current_menu[current_selection + 1].string) {
                         current_selection++;
                         should_render = true;
@@ -1386,6 +1435,13 @@ void run_gui(bool is_running)
                     should_render = true;
                 }
                 break;
+        
+            default: 
+                if (event.type == running_animation_event_type) {
+                    //printf("About to execute animation event handler\n");
+                    should_render = true;
+                }
+                break;
         }
         
         if (should_render) {
@@ -1406,8 +1462,15 @@ void run_gui(bool is_running)
                     draw_text_centered(pixels, width, height, 116 + y_offset, "Drop a GB or GBC", gui_palette_native[3], gui_palette_native[0], false);
                     draw_text_centered(pixels, width, height, 128 + y_offset, "file to play", gui_palette_native[3], gui_palette_native[0], false);
                     break;
+                case SHOWING_ADDINS:
+                    //printf("SHOWING_ADDINS...fallthrough\n");
+                    // Fallthrough
                 case SHOWING_MENU:
-                    draw_text_centered(pixels, width, height, 8 + y_offset, "SameBoy", gui_palette_native[3], gui_palette_native[0], false);
+                    if (gui_state != SHOWING_ADDINS)
+                        draw_text_centered(pixels, width, height, 8 + y_offset, "SameBoy", gui_palette_native[3], gui_palette_native[0], false);
+                    else
+                        draw_text_centered(pixels, width, height, 8 + y_offset, "SameBoy Add-ins", gui_palette_native[3], gui_palette_native[0], false);
+
                     unsigned i = 0, y = 24;
                     for (const struct menu_item *item = current_menu; item->string; item++, i++) {
                         if (i == current_selection) {
@@ -1421,12 +1484,25 @@ void run_gui(bool is_running)
                             goto rerender;
                         }
                         if (item->value_getter && !item->backwards_handler) {
-                            char line[25];
-                            snprintf(line, sizeof(line), "%s%*s", item->string, 24 - (unsigned)strlen(item->string), item->value_getter(i));
-                            draw_text_centered(pixels, width, height, y + y_offset, line, gui_palette_native[3], gui_palette_native[0],
-                                               i == current_selection ? DECORATION_SELECTION : DECORATION_NONE);
-                            y += 12;
+                            if (strcmp(item->string, ""))
+                            {
+                                char line[25];
+                                snprintf(line, sizeof(line), "%s%*s", item->string, 24 - (unsigned)strlen(item->string), item->value_getter(i));
+                                draw_text_centered(pixels, width, height, y + y_offset, line, gui_palette_native[3], gui_palette_native[0],
+                                                i == current_selection ? DECORATION_SELECTION : DECORATION_NONE);
+                            }
+                            else
+                            {
+                                draw_text_centered(pixels, width, height, y + y_offset, item->value_getter(i), gui_palette_native[3], gui_palette_native[0],
+                                            i == current_selection ? DECORATION_SELECTION : DECORATION_NONE);
+                                if (gui_state == SHOWING_ADDINS && i > 0 && get_addin(i - 1) && get_addin(i - 1)->active)
+                                {
+                                    unsigned x = width / 2 + 21 * GLYPH_WIDTH / 2;
+                                    draw_text(pixels, width, height, x, y, running_animation[running_animation_index], gui_palette_native[3], gui_palette_native[0]);
+                                }
+                            }
                             
+                            y += 12;
                         }
                         else {
                             draw_text_centered(pixels, width, height, y + y_offset, item->string, gui_palette_native[3], gui_palette_native[0],
@@ -1477,9 +1553,6 @@ void run_gui(bool is_running)
                                        gui_palette_native[3], gui_palette_native[0], DECORATION_NONE);
                     draw_text_centered(pixels, width, height, 104 + y_offset, "Press Enter to skip", gui_palette_native[3], gui_palette_native[0], DECORATION_NONE);
                     break;
-                case SHOWING_ADDINS:
-                    draw_text_centered(pixels, width, height, 8 + y_offset, "Add-ins", gui_palette_native[3], gui_palette_native[0], false);
-                    break;
             }
             
             render_texture(pixels, NULL);
@@ -1489,4 +1562,6 @@ void run_gui(bool is_running)
 #endif
         }
     } while (SDL_WaitEvent(&event));
+    SDL_RemoveTimer(running_animation_timer);
+    
 }

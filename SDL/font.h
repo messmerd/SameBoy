@@ -12,5 +12,9 @@ extern const uint8_t font_max;
 #define CTRL_STRING "\x80\x81\x82"
 #define SHIFT_STRING "\x83"
 #define CMD_STRING "\x84\x85"
+#define RUNNING_FRAME_0 "\x87"
+#define RUNNING_FRAME_1 "\x88"
+#define RUNNING_FRAME_2 "\x89"
+#define RUNNING_FRAME_3 "\x8a"
 #endif /* font_h */
 

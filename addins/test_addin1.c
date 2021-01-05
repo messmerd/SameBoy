@@ -11,16 +11,16 @@ SBAPI_DECLARE_PAUSE_HANDLER(pause_handler)
 int start(addin_start_args_t args)
 {
     printf("Add-in 1: Starting...\n");
-
+    
     const char *version = SBAPI_get_version();
     printf("Add-in 1: SameBoy version=%s\n", version);
 
     // Subscribe to fullscreen toggle events:
-    bool error = SBAPI_event_fullscreen_subscribe(M(true));
+    bool error = SBAPI_event_fullscreen_subscribe(SUBSCRIBE);
     if (error)
         printf("Add-in 1: Failed to subscribe to fullscreen event.\n");
 
-    error = SBAPI_event_pause_subscribe(M(true));
+    error = SBAPI_event_pause_subscribe(SUBSCRIBE);
     if (error)
         printf("Add-in 1: Failed to subscribe to pause event.\n");
 

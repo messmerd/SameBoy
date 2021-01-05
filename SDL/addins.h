@@ -35,10 +35,6 @@ typedef enum {
     ADDIN_IMPORT_MEMORY_ALLOCATION_FAIL
 } addin_import_error_t;
 
-//typedef int (*addin_start_pointer_t)(start_args_t);
-//typedef int (*addin_stop_pointer_t)(void);
-//typedef int (*addin_init_pointer_t)(void);
-
 typedef struct addin_event_handlers_s
 {
     SDL_ThreadFunction 
@@ -83,7 +79,7 @@ unsigned get_addins_count(void);
 //char *get_addin_name(unsigned index);
 
 addin_import_error_t addin_import(const char *filename);
-// void addin_remove(unsigned index); // TODO 
+// void addin_remove(unsigned index); // TODO
 
 void addin_start(addin_t *addin);
 void addin_start_ext(addin_t *addin, addin_start_args_t args);
@@ -98,6 +94,5 @@ void import_addins_from_addins_folder(void);
 void addins_event_step_invoke(void);
 void addins_event_fullscreen_invoke(bool is_fullscreen);
 void addins_event_pause_invoke(bool is_paused);
-
 
 #endif /* addins_h */

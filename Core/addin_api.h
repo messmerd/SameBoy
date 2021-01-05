@@ -3,6 +3,8 @@
 #ifndef addin_api_h
 #define addin_api_h
 
+#define ADDIN_API_VERSION "0.1"
+
 #ifdef _WIN32
 #    ifdef ADDINS_SERVER
 #        define SB_ADDIN_FUNC __declspec(dllimport)
@@ -84,6 +86,11 @@ typedef struct addin_log_event_args_s {
 
 /* Use this macro with API functions that require an add-in id */
 #define M(args) _addin_id, args
+
+/* Use these macros when subscribing to events */
+#define SUBSCRIBE _addin_id, 1
+#define UNSUBSCRIBE _addin_id, 0
+#define RANGE_UNSUBSCRIBE _addin_id, 2
 
 //////////////////////
 // Event Handlers   //
