@@ -3,10 +3,11 @@
 #include <stdio.h>
 #include <Core/addin_api.h>
 
-ADDIN_INIT
+ADDIN_INIT()
 
 SBAPI_DECLARE_FULLSCREEN_HANDLER(fullscreen_handler)
 SBAPI_DECLARE_MENU_HANDLER(menu_handler)
+SBAPI_DECLARE_ROM_RUN_STATE_HANDLER(rom_run_state_handler)
 
 int start(addin_start_args_t args)
 {
@@ -20,9 +21,16 @@ int start(addin_start_args_t args)
     if (error)
         printf("Add-in 1: Failed to subscribe to fullscreen event.\n");
 
-    error = SBAPI_event_pause_subscribe(SUBSCRIBE);
+    // Subscribe to menu open/close events:
+    error = SBAPI_event_menu_subscribe(SUBSCRIBE);
     if (error)
-        printf("Add-in 1: Failed to subscribe to pause event.\n");
+        printf("Add-in 1: Failed to subscribe to menu event.\n");
+
+    // Subscribe to ROM run state change (start/stop/reset) events:
+    error = SBAPI_event_rom_run_state_subscribe(SUBSCRIBE);
+    if (error)
+        printf("Add-in 1: Failed to subscribe to ROM run state event.\n");
+
 
     GB_gameboy_t *gb = SBAPI_get_GB();
 
@@ -61,10 +69,21 @@ void fullscreen_handler(bool is_fullscreen)
         printf("Add-in 1: Toggled fullscreen off.\n");
 }
 
-void menu_handler(bool is_paused)
+void menu_handler(bool menu_open)
 {
-    if (is_paused)
+    if (menu_open)
         printf("Add-in 1: Opened menu.\n");
     else
         printf("Add-in 1: Closed menu.\n");
+}
+
+void rom_run_state_handler(const rom_run_state_args_t args)
+{
+    const char *status[] = {
+        [ROM_RUN_STATE_START] = "started",
+        [ROM_RUN_STATE_STOP] = "stopped",
+        [ROM_RUN_STATE_RESET] = "reset"
+    };
+
+    printf("Add-in 1: Rom %s.\n", status[args]);
 }

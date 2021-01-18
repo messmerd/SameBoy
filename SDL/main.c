@@ -127,7 +127,7 @@ static void open_menu(void)
     if (previous_width != GB_get_screen_width(&gb)) {
         screen_size_changed();
     }
-    addins_event_pause_invoke(false);
+    addins_event_menu_invoke(false);
 }
 
 static void handle_events(GB_gameboy_t *gb)
@@ -475,6 +475,7 @@ static void run(void)
     SDL_ShowCursor(SDL_DISABLE);
     GB_model_t model;
     pending_command = GB_SDL_NO_COMMAND;
+    bool is_resetting = false;
 restart:
     model = (GB_model_t [])
     {
@@ -491,6 +492,8 @@ restart:
     
     if (GB_is_inited(&gb)) {
         GB_switch_model_and_reset(&gb, model);
+        if (!is_resetting)
+            addins_event_rom_run_state_invoke(ROM_RUN_STATE_STOP);
     }
     else {
         GB_init(&gb, model);
@@ -554,6 +557,9 @@ restart:
         
     screen_size_changed();
 
+    addins_event_rom_run_state_invoke(is_resetting? ROM_RUN_STATE_RESET : ROM_RUN_STATE_START);
+    is_resetting = false;
+    
     /* Run emulation */
     while (true) {
         if (paused || rewind_paused) {
@@ -577,6 +583,7 @@ restart:
         
         /* These commands can't run in the handle_event function, because they're not safe in a vblank context. */
         if (handle_pending_command()) {
+            is_resetting = pending_command == GB_SDL_RESET_COMMAND;
             pending_command = GB_SDL_NO_COMMAND;
             goto restart;
         }
@@ -709,7 +716,7 @@ int main(int argc, char **argv)
     
     if (filename == NULL) {
         run_gui(false);
-        addins_event_pause_invoke(false);
+        addins_event_menu_invoke(false);
     }
     else {
         connect_joypad();

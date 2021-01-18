@@ -546,6 +546,11 @@ bool SBAPI_event_menu_subscribe(unsigned addin_id, bool subscribe)
     return addin_event_subscribe(addin_id, get_handler(menu), "_menu_handler", subscribe);
 }
 
+bool SBAPI_event_rom_run_state_subscribe(unsigned addin_id, bool subscribe)
+{
+    return addin_event_subscribe(addin_id, get_handler(rom_run_state), "_rom_run_state_handler", subscribe);
+}
+
 
 ////////// EVENT HANDLING - INVOKE ///////////
 
@@ -564,7 +569,13 @@ void addins_event_fullscreen_invoke(bool is_fullscreen)
     addin_event_invoke(get_handler(fullscreen), "_fullscreen_handler", (void *)&is_fullscreen);
 }
 
-void addins_event_pause_invoke(bool is_paused)
+void addins_event_menu_invoke(bool menu_open)
 {
-    addin_event_invoke(get_handler(pause), "_pause_handler", (void *)&is_paused);
+    addin_event_invoke(get_handler(menu), "_menu_handler", (void *)&menu_open);
+}
+
+void addins_event_rom_run_state_invoke(rom_run_state_args_t args)
+{
+    printf("In addins_event_rom_run_state_invoke. args=%i.\n", (int)args);
+    addin_event_invoke(get_handler(rom_run_state), "_rom_run_state_handler", (void *)&args);
 }

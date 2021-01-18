@@ -64,6 +64,12 @@ typedef enum {
     START_ARGS_RELOAD=4
 } addin_start_args_t;
 
+typedef enum {
+    ROM_RUN_STATE_START,
+    ROM_RUN_STATE_STOP,
+    ROM_RUN_STATE_RESET
+} rom_run_state_args_t;
+
 typedef struct addin_log_event_args_s {
     const char *string;
     GB_log_attributes attributes;
@@ -76,7 +82,7 @@ typedef struct addin_log_event_args_s {
 #define SB_ADDIN_FUNC_CALL __cdecl
 
 /* ADDIN_INIT must be placed at the top of add-in code */
-#define ADDIN_INIT \
+#define ADDIN_INIT() \
     SB_ADDIN_FUNC _addin_id_t _addin_id; \
     SB_ADDIN_FUNC int SB_ADDIN_FUNC_CALL _addin_init(void *args) {_addin_id = *(_addin_id_t *)args; return _ADDIN_WINDOWS_CONSOLE_BUILD; } \
     int start(addin_start_args_t args); \
@@ -129,6 +135,8 @@ typedef void (*SBAPI_pause_callback_t)(bool is_paused);
     SB_ADDIN_FUNC int SB_ADDIN_FUNC_CALL _fullscreen_handler(void *args) {handler(*(bool *)args); return 0; }
 #define SBAPI_DECLARE_MENU_HANDLER(handler) void handler(bool menu_open); \
     SB_ADDIN_FUNC int SB_ADDIN_FUNC_CALL _menu_handler(void *args) {handler(*(bool *)args); return 0; }
+#define SBAPI_DECLARE_ROM_RUN_STATE_HANDLER(handler) void handler(const rom_run_state_args_t rom_run_state_args); \
+    SB_ADDIN_FUNC int SB_ADDIN_FUNC_CALL _rom_run_state_handler(void *args) {handler(*(rom_run_state_args_t *)args); return 0; }
 
 
 ////////// EVENT HANDLING - SUBSCRIBE ///////////
@@ -163,6 +171,7 @@ SB_ADDIN_API bool SBAPI_event_icd_vreset_subscribe(unsigned addin_id, bool subsc
 SB_ADDIN_API bool SBAPI_event_step_subscribe(unsigned addin_id, bool subscribe);
 SB_ADDIN_API bool SBAPI_event_fullscreen_subscribe(unsigned addin_id, bool subscribe);
 SB_ADDIN_API bool SBAPI_event_menu_subscribe(unsigned addin_id, bool subscribe);
+SB_ADDIN_API bool SBAPI_event_rom_run_state_subscribe(unsigned addin_id, bool subscribe);
 
 //////////////////////
 // API Functions    //

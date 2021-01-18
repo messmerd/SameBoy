@@ -55,7 +55,8 @@ typedef struct addin_event_handlers_s
     icd_vreset,
     step,
     fullscreen,
-    menu;
+    menu,
+    rom_run_state;
     // More event handlers to go here
 } addin_event_handlers_t;
 
@@ -93,6 +94,7 @@ void import_addins_from_addins_folder(void);
 
 void addins_event_step_invoke(void);
 void addins_event_fullscreen_invoke(bool is_fullscreen);
-void addins_event_pause_invoke(bool is_paused);
+void addins_event_menu_invoke(bool menu_open);
+void addins_event_rom_run_state_invoke(rom_run_state_args_t args);
 
 #endif /* addins_h */

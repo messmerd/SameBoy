@@ -1133,7 +1133,7 @@ void run_gui(bool is_running)
     current_selection = 0;
     scroll = 0;
 
-    addins_event_pause_invoke(true);
+    addins_event_menu_invoke(true);
 
     do {
         /* Convert Joypad and mouse events (We only generate down events) */
